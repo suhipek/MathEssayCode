@@ -1,5 +1,4 @@
 #reference: https://github.com/observerss/ngender/blob/master/ngender/ngender.py
-#论文版本
 
 DONT_BE_TOO_SMALL = 1600  # 防止太小的数相乘导致尾数溢出，最后都是算比例比大小所以不影响
 symbols = "!?@#$%^&*():;/<>.,\"\'\n"  # 特殊符号表
@@ -15,18 +14,21 @@ def read_csv(file_name='freq.csv'):  # 读取csv文件的函数
 class Guesser():
 
     def __init__(self):
-        self.total_words_num = 0  # 抓取到的总文本量
         self.total_each_meaning = []  # 原型词作某一义项的文本量，顺序和meanings一致
+        self.pxm = {}  # 存储个义项的频率，也就是P(X_m)
         self.freq = {}  
         # 原型词作某一义项的文本中单词n出现的频率，存储在字典值中，顺序和meanings一致
         self.meanings = []  # 这个list顺序很重要，freq的value都是按他的顺序排序的字典
         data = read_csv()
         self.meanings = data[0][1:]  # 将表头中的义项存起来
+        pxm_data = read_csv('words.csv')
+        
+        for line in pxm_data:
+            self.pxm[line[1]] = float(line[3])
 
         for index in range(len(self.meanings)):  # 按照顺序统计原型词作各义项的文本量
             times_of_meaning = map(int, [line[index + 1] for line in data[1:]])
             self.total_each_meaning.append(sum(times_of_meaning))
-        self.total_words_num = sum(self.total_each_meaning)  # 统计总文本量
         
         for line in data[1:]:  # 计算原型词作某一义项的文本中单词line[0]出现的频率
             self.freq[line[0]] = \
@@ -36,8 +38,7 @@ class Guesser():
 
     def prob(self, words_list: list, meaning: str):
         meaning_index = self.meanings.index(meaning)  # 保存义项的索引备用
-        p = self.total_each_meaning[meaning_index] / self.total_words_num
-        # ^将P(x_meaning)赋值给p
+        p = self.pxm[meaning]
         for word in words_list:  # 遍历句中所有词，并将p自乘P(Y_n | X_m)
             p *= self.freq.get(word, (1, 1))[meaning_index]  # 没这个词就返回1(平滑)
         return p  # 返回计算到的P(X_m | Y_1,Y_2,…,Y_n)（其实少除了一个P(Y_1,Y_2,…,Y_n)）
@@ -60,9 +61,9 @@ class Guesser():
 if  __name__ == "__main__":
     g = Guesser()
     wrong = right = 0
-    with open('stock_库存.txt') as f:
+    with open('stock_股票.txt') as f:
         for i in f.readlines():
-            if g.guess(i)[0] == '库存' and g.guess(i)[1] >= 0.5:
+            if g.guess(i)[0] == '股票':
                 right += 1
             else: wrong += 1
         f.close()
